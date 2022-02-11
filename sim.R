@@ -1,7 +1,6 @@
 ## Praktisk
 rm(list = ls())
 set.seed(07022022)
-setwd("~/Dropbox/phd/LSMeans/Code/")
 library(haven)
 library(LMMstar)
 library(tidyverse)
