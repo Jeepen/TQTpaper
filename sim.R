@@ -104,10 +104,6 @@ ests <- group_by(simresults, effect) %>% summarise(estKR = mean(estKR), estEasy 
 print(xtable(cbind(ests, model$coefficients$fixed[2:16])), include.rownames=FALSE)
 print(xtable(group_by(simresults, effect) %>% summarise(estKR = sd(estKR), estEasy = sd(estEasy))), include.rownames=FALSE)
 
-round(apply(simresults, 2, mean), 2) # estKR = 8.33, estEasy = 8.34 - Average estimate
-round(model$coefficients$fixed[16], 2)  # 8.35 - the truth in the simulations
-round(apply(simresults, 2, sd), 2) # estKR = 1.5, estEasy = 1.56 - standard error of estimates in the simulations
-
 
 
 
