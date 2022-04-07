@@ -23,6 +23,7 @@ d$REGIMEN <- relevel(as.factor(d$REGIMEN), ref = "F")
 d$PERIOD <- as.factor(d$PERIOD)
 d$timeF <- as.factor(d$TIME)
 d <- mutate(d, SubPer = SUBJECT : PERIOD, regimeTime = REGIMEN : timeF, periodTime = PERIOD : timeF) %>% arrange(SUBJECT, PERIOD, TIME)
+d[d$REGIMEN == "bas", "periodTime"] <- "1:0"
 d$regimeTime <- droplevels(d$regimeTime)
 d$periodTime <- droplevels(d$periodTime)
 
@@ -30,7 +31,7 @@ d$periodTime <- droplevels(d$periodTime)
 m <- lmm(QTCF ~ regimeTime + periodTime, structure = "ID", repetition = ~TIME | SubPer, data = d, df = FALSE, type.information="expected")
 mmat <- model.matrix(m)
 model <- lme(QTCF ~ mmat[,-1], random=~ 1 | SUBJECT / PERIOD, data = d, na.action = na.omit,
-             correlation = corSymm(form = ~ as.integer(timeF) | SUBJECT / PERIOD))
+             correlation = corSymm(form = ~ as.integer(timeF) | SUBJECT / PERIOD), weights = varIdent(form=~ 1 | TIME), control =list(msMaxIter = 1000, msMaxEval = 1000)))
 beta <- model$coefficients$fixed
 names(beta)[-1] <- substr(names(beta)[-1], 11, 50)
 
@@ -82,9 +83,13 @@ simresults <- foreach(i = 1:nsim, .combine = "rbind", .packages = c("mgcv", "MAS
   
   ## Fit Kenward Roger model
   modelsim <- lme(qtc ~ mmatsim[,-1], random=~ 1 | id / period, data = data_sim,
-                  correlation = corSymm(form = ~ as.integer(timeF) | id / period))
+                  correlation = corSymm(form = ~ as.integer(timeF) | id / period),
+                                    weights = varIdent(form=~ 1 | timeF), control = list(msMaxIter = 1000, msMaxEval = 1000))
   ## Get estimate
   estKR <- modelsim$coefficients$fixed[2:16]
+  estNonParametric <- as.numeric(as.matrix(group_by(data_sim, time) %>% summarise(meanC = mean(qtc[treat == "C"] - qtc[treat == "F"]),
+                                                                                  meanD = mean(qtc[treat == "D"] - qtc[treat == "F"]),
+                                                                                  meanE = mean(qtc[treat == "E"] - qtc[treat == "F"])))[-1,-1])
 
   ## Change data so baseline can be used as covariate
   data_sim <- mutate(data_sim, baseline = rep(qtc[time == 0], each = 6)) %>% filter(time != 0)
@@ -94,15 +99,16 @@ simresults <- foreach(i = 1:nsim, .combine = "rbind", .packages = c("mgcv", "MAS
                    random=~ 1 | id / period, data = data_sim, correlation = corAR1(form = ~ as.integer(timeF) | id / period))
   ## Get estimate
   estEasy <- modelsim2$coefficients$fixed[22:36]
+
   cat("KR est", estKR, "\n")
   cat("Simple est", estEasy, "\n")
   setTxtProgressBar(pb, i)
   data.frame(effect = substr(names(estKR), 24, 50), estKR, estEasy)
 }
 
-ests <- group_by(simresults, effect) %>% summarise(estKR = mean(estKR), estEasy = mean(estEasy))
+ests <- group_by(simresults, effect) %>% summarise(estKR = mean(estKR), estEasy = mean(estEasy), estNonParametric = mean(estNonParametric))
 print(xtable(cbind(ests, model$coefficients$fixed[2:16])), include.rownames=FALSE)
-print(xtable(group_by(simresults, effect) %>% summarise(estKR = sd(estKR), estEasy = sd(estEasy))), include.rownames=FALSE)
+print(xtable(group_by(simresults, effect) %>% summarise(estKR = sd(estKR), estEasy = sd(estEasy), estNonParametric = sd(estNonParametric))), include.rownames=FALSE)
 
 
 
