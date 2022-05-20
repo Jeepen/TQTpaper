@@ -1,5 +1,4 @@
-# Code for "Unbiased and Efficient Estimation of Causal Treatment Effects in
-Cross-over Trials" 
+# Code for "Unbiased and Efficient Estimation of Causal Treatment Effects in Cross-over Trials" 
 
 The file *sim.R* contains the code that runs the simulation. This takes a long time!
 
